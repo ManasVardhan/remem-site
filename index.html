@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>reMem</title>
+<meta name="description" content="A memory kernel for agents. An append-only ledger, a derived belief layer, and new information that supersedes old without deleting it.">
+<link rel="icon" href="../brand/remem-mark-32.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root{
+    --ink:#111114; --paper:#FBFBF9; --plate:#FFFFFF; --rule:#E4E4E0; --mute:#8C8C86;
+    /* Three accents, each with a job. Sage is what is true now. Lilac is what
+       was replaced and kept. Blue is a surface you type into. Nothing else
+       takes colour. */
+    --sage:#3F6A51; --sage-tint:#E9F1EA; --sage-wash:#F6FAF6; --sage-rule:#CBDDCF;
+    --lilac:#6E5E92; --lilac-tint:#EDE8F4; --lilac-wash:#F9F7FC; --lilac-rule:#D8CFE6;
+    --code:#3D5C8C; --code-tint:#E9EFF8; --code-rule:#C9D8EC;
+    --serif:"Instrument Serif","Iowan Old Style",Georgia,serif;
+    --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#F2F2EF; --paper:#0D0D0F; --plate:#141416; --rule:#2A2A2E; --mute:#7E7E86;
+      --sage:#9CC7A8; --sage-tint:#182219; --sage-wash:#121815; --sage-rule:#2C3D31;
+      --lilac:#B4A4D6; --lilac-tint:#1D1A28; --lilac-wash:#16151D; --lilac-rule:#352E45;
+      --code:#9FBFE8; --code-tint:#161D26; --code-rule:#2A3646;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#F2F2EF; --paper:#0D0D0F; --plate:#141416; --rule:#2A2A2E; --mute:#7E7E86;
+      --sage:#9CC7A8; --sage-tint:#182219; --sage-wash:#121815; --sage-rule:#2C3D31;
+      --lilac:#B4A4D6; --lilac-tint:#1D1A28; --lilac-wash:#16151D; --lilac-rule:#352E45;
+      --code:#9FBFE8; --code-tint:#161D26; --code-rule:#2A3646;
+  }
+
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--mono); font-size:13.5px; line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+  .sheet{max-width:1080px; margin:0 auto; padding:0 32px}
+  a{color:var(--ink); text-underline-offset:3px; text-decoration-thickness:1px}
+  a:hover{text-decoration-color:var(--mute)}
+  :focus-visible{outline:2px solid var(--ink); outline-offset:3px}
+
+  .eyebrow{
+    font-size:11px; letter-spacing:0.14em; text-transform:uppercase;
+    color:var(--mute); margin:0 0 16px; display:flex; align-items:center; gap:11px;
+    flex-wrap:wrap;
+  }
+  .eyebrow .mark{width:16px; height:16px; display:block; flex:none}
+  h1{
+    font-family:var(--serif); font-weight:400;
+    font-size:clamp(34px,5.1vw,62px); line-height:1.06; letter-spacing:-0.018em;
+    margin:0; text-wrap:balance; max-width:21ch;
+  }
+  h2{
+    font-family:var(--serif); font-weight:400; font-size:clamp(27px,3.4vw,38px);
+    line-height:1.1; letter-spacing:-0.014em; margin:0; text-wrap:balance; max-width:22ch;
+  }
+  h3{font-family:var(--serif); font-weight:400; font-size:24px; line-height:1.16;
+     letter-spacing:-0.01em; margin:0}
+  p{margin:0; max-width:62ch}
+  .mute{color:var(--mute)}
+  .small{font-size:12px; line-height:1.62}
+
+  /* Hero */
+  header.hero{
+    padding:78px 0 64px; display:grid; grid-template-columns:minmax(0,1fr) auto;
+    gap:0 64px; align-items:center;
+  }
+  .hero .copy{min-width:0}
+  .hero .brandmark{width:min(268px,24vw); height:auto; color:var(--ink); display:block}
+  .hero .lede{margin-top:24px; color:var(--mute); max-width:60ch}
+  .cta{margin-top:34px; display:flex; flex-wrap:wrap; gap:10px 12px; align-items:center}
+  .chip{
+    border:1px solid var(--code-rule); background:var(--code-tint);
+    padding:9px 15px; font-size:13px; display:inline-flex; gap:10px; align-items:center;
+  }
+  .chip .dollar{color:var(--code)}
+  .links{display:flex; flex-wrap:wrap; gap:8px 22px; font-size:12px}
+
+  /* Sections */
+  section{padding:64px 0; border-top:1px solid var(--rule)}
+  .lead-in{display:flex; flex-direction:column; gap:18px; margin-bottom:44px}
+  .kicker{
+    font-size:10.5px; letter-spacing:0.13em; text-transform:uppercase; color:var(--mute);
+    margin:0;
+  }
+
+  /* Hairline plate grid, the device from the identity study. */
+  .grid{
+    display:grid; gap:1px; background:var(--rule);
+    border:1px solid var(--rule); grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+  }
+  .grid--2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  .plate{background:var(--plate); padding:30px 26px; display:flex;
+         flex-direction:column; gap:12px}
+  .plate .num{font-size:10.5px; letter-spacing:0.12em; text-transform:uppercase;
+              color:var(--mute); font-variant-numeric:tabular-nums; margin:0}
+
+  .stat{
+    font-family:var(--serif); font-size:clamp(40px,5vw,54px); line-height:1;
+    letter-spacing:-0.02em; font-variant-numeric:tabular-nums; margin:0;
+  }
+  .stat--sm{font-size:34px}
+
+  /* Feature stat: one number carrying the section, with the comparison beside it. */
+  .feature{
+    display:grid; grid-template-columns:minmax(220px,300px) minmax(0,1fr);
+    gap:1px; background:var(--rule); border:1px solid var(--rule);
+  }
+  .feature > *{background:var(--plate)}
+  .headline{background:var(--sage-wash); padding:38px 30px; display:flex; flex-direction:column; gap:14px;
+            justify-content:center}
+  .headline .big{
+    font-family:var(--serif); font-size:clamp(56px,7.4vw,84px); line-height:0.94;
+    letter-spacing:-0.03em; font-variant-numeric:tabular-nums;
+  }
+  .headline .cap{font-size:11px; letter-spacing:0.12em; text-transform:uppercase;
+                 color:var(--mute)}
+
+  /* Comparison bars. reMem is solid ink, the comparator is an outline. */
+  .chart{padding:34px 30px; display:grid; gap:28px; align-content:center}
+  .bargroup{display:grid; gap:10px}
+  .bargroup .cap{font-size:10px; letter-spacing:0.13em; text-transform:uppercase;
+                 color:var(--mute); margin-bottom:2px}
+  .row{display:grid; grid-template-columns:66px minmax(0,1fr) 58px; gap:14px;
+       align-items:center}
+  .who{font-size:11.5px; color:var(--mute)}
+  .track{height:20px; position:relative}
+  .fill{
+    position:absolute; top:0; bottom:0; left:0; width:var(--w);
+    background:var(--ink); transform-origin:left center;
+  }
+  .fill--outline{background:transparent; border:1px solid var(--rule)}
+  .pct{font-family:var(--serif); font-size:19px; text-align:right;
+       font-variant-numeric:tabular-nums}
+
+  /* Before and after */
+  .demo{border:1px solid var(--rule); background:var(--plate)}
+  .tape{padding:30px 30px 26px; display:grid; gap:0}
+  .tape .cap, .split .cap{
+    font-size:10px; letter-spacing:0.13em; text-transform:uppercase; color:var(--mute);
+    margin:0 0 16px;
+  }
+  .obs{display:grid; grid-template-columns:78px minmax(0,1fr); gap:18px;
+       padding:0 0 20px; position:relative}
+  .obs:last-child{padding-bottom:0}
+  /* A hairline through the timestamps, so the two observations read as a sequence. */
+  .obs::before{
+    content:""; position:absolute; left:6px; top:9px; bottom:-9px;
+    border-left:1px solid var(--rule);
+  }
+  .obs:last-child::before{display:none}
+  .obs time{
+    font-size:11px; color:var(--mute); font-variant-numeric:tabular-nums;
+    padding-left:18px; position:relative;
+  }
+  .obs time::before{
+    content:""; position:absolute; left:2px; top:6px; width:9px; height:9px;
+    background:var(--ink);
+  }
+  .obs:first-child time::before{background:transparent; border:1px solid var(--mute)}
+  .obs:last-child time::before{background:var(--sage)}
+  .obs p{font-size:14px; margin:0}
+
+  .ask{
+    border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+    padding:22px 30px; font-size:13px; color:var(--mute);
+  }
+  .ask b{font-weight:400; color:var(--ink)}
+
+  .split{display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+         gap:1px; background:var(--rule)}
+  .side{background:var(--sage-wash); padding:28px 30px 30px; display:flex;
+        flex-direction:column; gap:14px}
+  .side--stale{background:var(--lilac-wash)}
+  .answer{
+    font-family:var(--serif); font-size:clamp(21px,2.4vw,27px); line-height:1.28;
+    letter-spacing:-0.01em; margin:0;
+  }
+  .answer em{font-style:normal; border-bottom:2px solid var(--sage); padding-bottom:1px}
+  .side--stale .answer{color:var(--mute)}
+  .side--stale .answer em{border-bottom-color:var(--lilac)}
+  .verdict{display:flex; gap:11px; align-items:flex-start; font-size:12px;
+           line-height:1.6; color:var(--mute); margin:0}
+  .verdict .box{width:9px; height:9px; flex:none; margin-top:6px;
+                border:1px solid var(--mute)}
+  .verdict .box--fill{background:var(--sage); border-color:var(--sage)}
+  .verdict b{font-weight:400; color:var(--ink)}
+  .held{display:flex; flex-wrap:wrap; gap:8px 14px; font-size:11.5px; color:var(--mute)}
+  .held s{text-decoration:line-through; text-decoration-thickness:1px;
+           color:var(--lilac)}
+  .held .tag{border:1px solid var(--lilac-rule); background:var(--lilac-tint);
+             color:var(--lilac); padding:1px 8px; font-size:9.5px;
+             letter-spacing:0.1em; text-transform:uppercase}
+
+  /* Pull quote */
+  .quote{
+    border-left:2px solid var(--ink); padding:4px 0 4px 28px; margin:0;
+    font-family:var(--serif); font-size:clamp(24px,3.2vw,34px); line-height:1.24;
+    letter-spacing:-0.012em; max-width:26ch;
+  }
+
+  @media (prefers-reduced-motion: no-preference){
+    .fill{animation:grow 820ms cubic-bezier(.2,.7,.2,1) both;
+          animation-delay:var(--d,0ms)}
+    @keyframes grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+    .brandmark .front{animation:arrive 900ms cubic-bezier(.2,.7,.2,1) 220ms both}
+    @keyframes arrive{
+      from{transform:translate(9px,9px); opacity:0}
+      to{transform:translate(0,0); opacity:1}
+    }
+  }
+  @media (max-width:780px){
+    .feature{grid-template-columns:minmax(0,1fr)}
+  }
+
+  /* Pull quote for the bound. */
+  .bound{
+    border-left:2px solid var(--ink); padding:6px 0 6px 26px; margin:0;
+    display:flex; flex-direction:column; gap:16px;
+  }
+  .bound .formula{
+    font-family:var(--serif); font-size:clamp(26px,3.6vw,40px); line-height:1.2;
+    letter-spacing:-0.01em;
+  }
+  .bound .formula i{font-style:italic}
+
+  /* Data table */
+  .tablewrap{overflow-x:auto; border:1px solid var(--rule); background:var(--plate)}
+  table{border-collapse:collapse; width:100%; min-width:520px; font-size:12.5px}
+  th,td{text-align:right; padding:13px 18px; border-bottom:1px solid var(--rule);
+        font-variant-numeric:tabular-nums; white-space:nowrap}
+  th:first-child,td:first-child{text-align:left; white-space:normal}
+  thead th{
+    font-weight:400; font-size:10px; letter-spacing:0.12em; text-transform:uppercase;
+    color:var(--mute);
+  }
+  tbody tr:last-child td{border-bottom:none}
+  td.win{font-family:var(--serif); font-size:19px; line-height:1}
+  .ns{color:var(--mute)}
+
+  /* The overwrite device, reused from the live viewer. */
+  .belief{
+    background:var(--plate); border:1px solid var(--rule); padding:34px 28px;
+    display:flex; flex-direction:column; align-items:center; gap:13px; text-align:center;
+  }
+  .belief .val{font-family:var(--serif); font-size:40px; line-height:1.1; letter-spacing:-0.012em}
+  .belief .was{font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color:var(--mute)}
+  .belief .old{
+    font-family:var(--serif); font-size:21px; color:var(--mute);
+    text-decoration:line-through; text-decoration-thickness:1px;
+  }
+  .belief .meta{font-size:10.5px; letter-spacing:0.1em; color:var(--mute); margin-top:6px}
+
+  /* Flow */
+  .flow{display:grid; gap:1px; background:var(--rule); border:1px solid var(--rule);
+        grid-template-columns:repeat(auto-fit,minmax(215px,1fr))}
+  .step{background:var(--plate); padding:26px 22px; display:flex; flex-direction:column; gap:9px}
+  .step .n{font-size:10.5px; letter-spacing:0.12em; color:var(--mute)}
+  .step h3{font-size:21px}
+  .step p{font-size:12px; line-height:1.6; color:var(--mute)}
+
+  pre{
+    margin:0; overflow-x:auto; background:var(--code-tint);
+    border:1px solid var(--code-rule); color:var(--code);
+    padding:18px 20px; font-size:12.5px; line-height:1.65;
+  }
+  code{font-family:var(--mono)}
+  pre .c{color:var(--mute)}
+  pre + p + pre{margin-top:12px}
+  .stack{display:flex; flex-direction:column; gap:14px}
+
+  footer{
+    border-top:1px solid var(--rule); padding:32px 0 72px; color:var(--mute);
+    font-size:11.5px; display:flex; flex-wrap:wrap; gap:10px 26px; align-items:center;
+  }
+  footer .mark{width:14px; height:14px; display:block; flex:none}
+  .push{margin-left:auto}
+  @media (max-width:860px){
+    header.hero{grid-template-columns:minmax(0,1fr)}
+    .hero .brandmark{display:none}
+  }
+  @media (max-width:640px){
+    .sheet{padding:0 20px}
+    header.hero{padding:52px 0 48px}
+    section{padding:48px 0}
+    .push{margin-left:0}
+  }
+</style>
+</head>
+<body>
+<div class="sheet">
+
+  <header class="hero">
+    <div class="copy">
+      <p class="eyebrow">
+        <svg class="mark" viewBox="0 0 96 96" aria-hidden="true">
+          <path fill="currentColor" fill-rule="evenodd" d="M12 12H60V60H12Z M36 36H84V84H36Z"/>
+        </svg>
+        memory kernel &middot; local-first &middot; AGPL-3.0
+      </p>
+      <h1>reMem</h1>
+      <p class="lede">
+        A real-time ledger of everything your agent observes, and a belief layer derived
+        from it. When something changes, the new value supersedes the old one instead of
+        overwriting it, so the agent can tell you what it currently believes, what it used
+        to believe, and which observation changed its mind.
+      </p>
+      <div class="cta">
+        <span class="chip"><span class="dollar">$</span>npm i remem-kernel</span>
+        <span class="links">
+          <a href="#use">Install</a>
+          <a href="https://github.com/ManasVardhan/reMem">Source</a>
+          <a href="https://www.npmjs.com/package/remem-kernel">npm</a>
+        </span>
+      </div>
+    </div>
+    <svg class="brandmark" viewBox="0 0 96 96" aria-label="reMem">
+      <path d="M12 12H60V60H12Z" fill="currentColor"/>
+      <g class="front">
+        <path d="M36 36H84V84H36Z" fill="currentColor"/>
+        <path d="M36 36H60V60H36Z" fill="var(--paper)"/>
+      </g>
+    </svg>
+  </header>
+
+  <section id="demo">
+    <div class="lead-in">
+      <p class="kicker">01 &middot; the difference</p>
+      <h2>You changed jobs. Did your agent notice?</h2>
+      <p class="mute">
+        The same two messages, the same question, eight months later. One of these answers
+        goes out to a stranger with your name on it.
+      </p>
+    </div>
+
+    <div class="demo">
+      <div class="tape">
+        <p class="cap">what you told it</p>
+        <div class="obs">
+          <time>14 Jan</time>
+          <p>&ldquo;I'm a software engineer at Stripe.&rdquo;</p>
+        </div>
+        <div class="obs">
+          <time>2 Aug</time>
+          <p>&ldquo;I left Stripe. I'm at Anthropic now.&rdquo;</p>
+        </div>
+      </div>
+
+      <div class="ask">Today you ask: <b>&ldquo;Write a one-line intro about me.&rdquo;</b></div>
+
+      <div class="split">
+        <div class="side side--stale">
+          <p class="cap">Existing memory stores</p>
+          <p class="answer">&ldquo;A software engineer at <em>Stripe</em>.&rdquo;</p>
+          <div class="held">
+            <span>employer = Stripe</span>
+            <span>employer = Anthropic</span>
+          </div>
+          <p class="verdict"><span class="box"></span><span>
+            <b>Eight months out of date.</b> Both facts sit in the store with equal
+            standing, so the agent returns whichever one the search happens to surface
+            first, and it has no way to know the other one exists.
+          </span></p>
+        </div>
+        <div class="side">
+          <p class="cap">reMem</p>
+          <p class="answer">&ldquo;A software engineer at <em>Anthropic</em>.&rdquo;</p>
+          <div class="held">
+            <span><s>employer = Stripe</s> <span class="tag">superseded</span></span>
+            <span>employer = Anthropic</span>
+          </div>
+          <p class="verdict"><span class="box box--fill"></span><span>
+            <b>Current, and it can show its work.</b> Stripe was marked superseded the
+            moment you said you left, and kept. Ask why and reMem points at the exact
+            message that changed its mind.
+          </span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="results">
+    <div class="lead-in">
+      <p class="kicker">02 &middot; results</p>
+      <h2>Three times better than mem0 on facts that change</h2>
+      <p class="mute">
+        Head to head against mem0 on a benchmark built from facts that get corrected
+        partway through.
+      </p>
+    </div>
+
+    <div class="feature">
+      <div class="headline">
+        <p class="big">3&times;</p>
+        <p class="cap">improvement over mem0</p>
+        <p class="small mute">45.0% against 15.0%. Three times as many questions answered
+          correctly when the answer turns on a fact that was later corrected.</p>
+      </div>
+      <div class="chart">
+        <div class="bargroup">
+          <p class="cap">Accuracy when supplied with 6k tokens</p>
+          <div class="row">
+            <span class="who">reMem</span>
+            <span class="track"><span class="fill" style="--w:45%"></span></span>
+            <span class="pct">45.0</span>
+          </div>
+          <div class="row">
+            <span class="who">mem0</span>
+            <span class="track"><span class="fill fill--outline" style="--w:15%;--d:120ms"></span></span>
+            <span class="pct">15.0</span>
+          </div>
+        </div>
+        <div class="bargroup">
+          <p class="cap">Accuracy when supplied with 32k tokens</p>
+          <div class="row">
+            <span class="who">reMem</span>
+            <span class="track"><span class="fill" style="--w:57%;--d:240ms"></span></span>
+            <span class="pct">57.0</span>
+          </div>
+          <div class="row">
+            <span class="who">mem0</span>
+            <span class="track"><span class="fill fill--outline" style="--w:23%;--d:360ms"></span></span>
+            <span class="pct">23.0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid" style="margin-top:28px">
+      <article class="plate">
+        <p class="num">it holds at scale</p>
+        <p class="stat stat--sm">2.5&times;</p>
+        <p class="small mute">Give both systems five times as much to remember and the lead
+          barely moves: 57.0% against 23.0%. It does not fall apart as memory grows.</p>
+      </article>
+      <article class="plate">
+        <p class="num">cost per memory</p>
+        <p class="stat stat--sm">0</p>
+        <p class="small mute">Zero cost to save or recall a memory. Neither one ever calls
+          a model, so there is no per-message bill, no added latency and no rate limit.
+          Only consolidation uses a model, once at the end of a session.</p>
+      </article>
+      <article class="plate">
+        <p class="num">every answer has a receipt</p>
+        <p class="stat stat--sm">100% traceability</p>
+        <p class="small mute">Every single thing reMem believes is linked to the actual
+          message you said it in. Ask why, and it shows you. Nothing is invented, because
+          nothing without a source is ever stored.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="problem">
+    <div class="lead-in">
+      <p class="kicker">03 &middot; why it wins</p>
+      <h2>Agents keep telling you what used to be true</h2>
+      <p class="mute">
+        Memory layers tend to do one of two things with a contradiction, and both lose
+        something you need.
+      </p>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="plate">
+        <h3>Overwrite, and the history is gone</h3>
+        <p class="small mute">
+          The store now holds the new value and nothing else. Nothing can explain why the
+          answer changed, and if the update was wrong there is no earlier state to fall
+          back to. You cannot audit what you cannot see.
+        </p>
+      </article>
+      <article class="plate">
+        <h3>Accumulate, and nothing is current</h3>
+        <p class="small mute">
+          Both values sit in the store with equal standing, so retrieval returns whichever
+          one happens to embed closest to the query. The agent confidently reports a fact
+          that stopped being true months ago.
+        </p>
+      </article>
+    </div>
+
+    <blockquote class="quote" style="margin-top:36px">
+      reMem does neither. The old value stays on the record, marked, with the observation
+      that replaced it still attached.
+    </blockquote>
+  </section>
+
+  <section id="how">
+    <div class="lead-in">
+      <p class="kicker">04 &middot; how it works</p>
+      <h2>An immutable ledger, and beliefs derived from it</h2>
+      <p class="mute">
+        Almost every failure mode of a memory system comes from collapsing those two into
+        one mutable store. Observations are never updated or deleted. Beliefs are derived,
+        confidence-scored, scoped, and always point back to the observations that justify
+        them.
+      </p>
+    </div>
+
+    <div class="flow">
+      <article class="step">
+        <p class="n">01</p><h3>Observe</h3>
+        <p>Appends to the ledger. Synchronous, no model call, nothing to get wrong.</p>
+      </article>
+      <article class="step">
+        <p class="n">02</p><h3>Consolidate</h3>
+        <p>A model proposes typed belief operations. A deterministic reducer disposes.
+           No unbounded model mutation of state.</p>
+      </article>
+      <article class="step">
+        <p class="n">03</p><h3>Beliefs</h3>
+        <p>Mutable, scoped, decaying, provenance-linked. A contradiction marks the prior
+           belief superseded rather than deleting it.</p>
+      </article>
+      <article class="step">
+        <p class="n">04</p><h3>Recall</h3>
+        <p>A scoped, ranked, compact context pack. It abstains rather than guessing.</p>
+      </article>
+    </div>
+
+    <div class="grid grid--2" style="margin-top:28px">
+      <article class="plate">
+        <h3>Everything in one file</h3>
+        <p class="small mute">
+          One SQLite file and a local embedder by default. No vector database, no graph
+          database, no services to run. Back it up by copying it, and the model of your
+          user can live entirely on your own machine.
+        </p>
+      </article>
+      <article class="plate">
+        <h3>Watch it think</h3>
+        <p class="small mute">
+          A bundled viewer shows every belief the kernel holds, the value it replaced, and
+          the messages both came from, updating live in your browser as your agent works.
+        </p>
+      </article>
+    </div>
+  </section>
+
+  <section id="use">
+    <div class="lead-in">
+      <p class="kicker">05 &middot; use it</p>
+      <h2>Four ways in</h2>
+    </div>
+
+    <div class="grid grid--2">
+      <article class="plate">
+        <h3>As a library</h3>
+        <pre><code>npm i remem-kernel</code></pre>
+        <p class="small mute">Eight methods: observe, consolidate, decay, recall, why,
+          beliefs, forget, export.</p>
+      </article>
+      <article class="plate">
+        <h3>As an MCP server</h3>
+        <pre><code>claude mcp add remem -- \
+  npx -p remem-kernel remem-mcp</code></pre>
+        <p class="small mute">One command, nothing to edit by hand. Your agent gets seven
+          tools: recall, remember, beliefs and why for what memory holds; search,
+          observation and history for what happened. Any other MCP client can run the
+          same <code>npx</code> command as a stdio server.</p>
+      </article>
+      <article class="plate">
+        <h3>As a Claude Code plugin</h3>
+        <pre><code>npm i -g remem-kernel
+claude plugin marketplace add \
+  "$(npm root -g)/remem-kernel"
+claude plugin install remem@remem</code></pre>
+        <p class="small mute">Restart Claude Code and it starts remembering on its own:
+          your messages and the files you touch go to the ledger as you work, beliefs are
+          consolidated when the session ends, and the next session opens already knowing
+          them. Already using claude-mem? <code>remem-import</code> brings it across in
+          one command.</p>
+      </article>
+      <article class="plate">
+        <h3>Watch it live in your browser</h3>
+        <pre><code>npx -p remem-kernel remem-viewer</code></pre>
+        <p class="small mute">Prints a link like
+          <code>http://localhost:37800</code>. It opens on the ledger: everything you have
+          said, newest first, with what memory believes above it. Click anything to see it
+          in full and what it led memory to conclude. Leave it open in a tab while you
+          work.</p>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    <svg class="mark" viewBox="0 0 96 96" aria-hidden="true">
+      <path fill="currentColor" fill-rule="evenodd" d="M12 12H60V60H12Z M36 36H84V84H36Z"/>
+    </svg>
+    <span>reMem</span>
+    <a href="https://github.com/ManasVardhan/reMem">GitHub</a>
+    <a href="https://www.npmjs.com/package/remem-kernel">npm</a>
+    <span class="push">AGPL-3.0</span>
+  </footer>
+
+</div>
+</body>
+</html>
