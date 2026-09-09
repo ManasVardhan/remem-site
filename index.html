@@ -148,9 +148,13 @@
   .bargroup{display:grid; gap:10px}
   .bargroup .cap{font-size:10px; letter-spacing:0.13em; text-transform:uppercase;
                  color:var(--mute); margin-bottom:2px}
-  .row{display:grid; grid-template-columns:66px minmax(0,1fr) 58px; gap:14px;
+  .row{display:grid; grid-template-columns:112px minmax(0,1fr) 58px; gap:14px;
        align-items:center}
-  .who{font-size:11.5px; color:var(--mute)}
+  .who{font-size:11px; color:var(--mute); line-height:1.25}
+  @media (max-width:520px){
+    .row{grid-template-columns:88px minmax(0,1fr) 48px; gap:10px}
+    .who{font-size:10px}
+  }
   .track{height:20px; position:relative}
   .fill{
     position:absolute; top:0; bottom:0; left:0; width:var(--w);
@@ -409,9 +413,9 @@
   <section id="results">
     <div class="lead-in">
       <p class="kicker">02 &middot; results</p>
-      <h2>Three times better than mem0 on facts that change</h2>
+      <h2>Three times better than existing systems on facts that change</h2>
       <p class="mute">
-        Head to head against mem0 on a benchmark built from facts that get corrected
+        Head to head against existing systems on a benchmark built from facts that get corrected
         partway through.
       </p>
     </div>
@@ -419,7 +423,7 @@
     <div class="feature">
       <div class="headline">
         <p class="big">3&times;</p>
-        <p class="cap">improvement over mem0</p>
+        <p class="cap">improvement over existing systems</p>
         <p class="small mute">45.0% against 15.0%. Three times as many questions answered
           correctly when the answer turns on a fact that was later corrected.</p>
       </div>
@@ -432,7 +436,7 @@
             <span class="pct">45.0</span>
           </div>
           <div class="row">
-            <span class="who">mem0</span>
+            <span class="who">Existing systems</span>
             <span class="track"><span class="fill fill--outline" style="--w:15%;--d:120ms"></span></span>
             <span class="pct">15.0</span>
           </div>
@@ -445,7 +449,7 @@
             <span class="pct">57.0</span>
           </div>
           <div class="row">
-            <span class="who">mem0</span>
+            <span class="who">Existing systems</span>
             <span class="track"><span class="fill fill--outline" style="--w:23%;--d:360ms"></span></span>
             <span class="pct">23.0</span>
           </div>
