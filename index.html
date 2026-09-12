@@ -331,10 +331,8 @@
       </p>
       <h1>reMem</h1>
       <p class="lede">
-        A real-time ledger of everything your agent observes, and a belief layer derived
-        from it. When something changes, the new value supersedes the old one instead of
-        overwriting it, so the agent can tell you what it currently believes, what it used
-        to believe, and which observation changed its mind.
+        A real-time ledger of everything your agent observes, and beliefs derived from it.<br>
+        A self-correcting belief layer which can supersede old facts with new ones.
       </p>
       <div class="cta">
         <span class="chip"><span class="dollar">$</span>npm i remem-kernel</span>
@@ -462,21 +460,18 @@
         <p class="num">it holds at scale</p>
         <p class="stat stat--sm">2.5&times;</p>
         <p class="small mute">Give both systems five times as much to remember and the lead
-          barely moves: 57.0% against 23.0%. It does not fall apart as memory grows.</p>
+          holds.</p>
       </article>
       <article class="plate">
         <p class="num">cost per memory</p>
         <p class="stat stat--sm">0</p>
-        <p class="small mute">Zero cost to save or recall a memory. Neither one ever calls
-          a model, so there is no per-message bill, no added latency and no rate limit.
-          Only consolidation uses a model, once at the end of a session.</p>
+        <p class="small mute">Zero cost to save or recall a memory.</p>
       </article>
       <article class="plate">
         <p class="num">every answer has a receipt</p>
         <p class="stat stat--sm">100% traceability</p>
-        <p class="small mute">Every single thing reMem believes is linked to the actual
-          message you said it in. Ask why, and it shows you. Nothing is invented, because
-          nothing without a source is ever stored.</p>
+        <p class="small mute">Everything reMem believes is grounded in what you said. Ask
+          why, and it shows you the exact message.</p>
       </article>
     </div>
   </section>
@@ -520,12 +515,6 @@
     <div class="lead-in">
       <p class="kicker">04 &middot; how it works</p>
       <h2>An immutable ledger, and beliefs derived from it</h2>
-      <p class="mute">
-        Almost every failure mode of a memory system comes from collapsing those two into
-        one mutable store. Observations are never updated or deleted. Beliefs are derived,
-        confidence-scored, scoped, and always point back to the observations that justify
-        them.
-      </p>
     </div>
 
     <div class="flow">
@@ -535,13 +524,13 @@
       </article>
       <article class="step">
         <p class="n">02</p><h3>Consolidate</h3>
-        <p>A model proposes typed belief operations. A deterministic reducer disposes.
-           No unbounded model mutation of state.</p>
+        <p>The model proposes belief updates, and a deterministic reducer decides what gets
+           applied. The model never directly or freely mutates the underlying state.</p>
       </article>
       <article class="step">
         <p class="n">03</p><h3>Beliefs</h3>
         <p>Mutable, scoped, decaying, provenance-linked. A contradiction marks the prior
-           belief superseded rather than deleting it.</p>
+           belief superseded.</p>
       </article>
       <article class="step">
         <p class="n">04</p><h3>Recall</h3>
@@ -551,11 +540,10 @@
 
     <div class="grid grid--2" style="margin-top:28px">
       <article class="plate">
-        <h3>Everything in one file</h3>
+        <h3>Your data on your machine</h3>
         <p class="small mute">
-          One SQLite file and a local embedder by default. No vector database, no graph
-          database, no services to run. Back it up by copying it, and the model of your
-          user can live entirely on your own machine.
+          An SQLite file and local embedder. No vector database, no graph database, no
+          services to run. Everything on your machine, local by design.
         </p>
       </article>
       <article class="plate">
@@ -585,10 +573,8 @@
         <h3>As an MCP server</h3>
         <pre><code>claude mcp add remem -- \
   npx -p remem-kernel remem-mcp</code></pre>
-        <p class="small mute">One command, nothing to edit by hand. Your agent gets seven
-          tools: recall, remember, beliefs and why for what memory holds; search,
-          observation and history for what happened. Any other MCP client can run the
-          same <code>npx</code> command as a stdio server.</p>
+        <p class="small mute">Your agent gets seven tools: recall, remember, beliefs and
+          why for what memory holds; search, observation and history for what happened.</p>
       </article>
       <article class="plate">
         <h3>As a Claude Code plugin</h3>
@@ -596,20 +582,15 @@
 claude plugin marketplace add \
   "$(npm root -g)/remem-kernel"
 claude plugin install remem@remem</code></pre>
-        <p class="small mute">Restart Claude Code and it starts remembering on its own:
-          your messages and the files you touch go to the ledger as you work, beliefs are
-          consolidated when the session ends, and the next session opens already knowing
-          them. Already using claude-mem? <code>remem-import</code> brings it across in
-          one command.</p>
+        <p class="small mute">Restart Claude Code and it starts remembering on its own.
+          When the session ends, it consolidates what it learned, and the next session
+          opens already knowing it.</p>
       </article>
       <article class="plate">
         <h3>Watch it live in your browser</h3>
         <pre><code>npx -p remem-kernel remem-viewer</code></pre>
-        <p class="small mute">Prints a link like
-          <code>http://localhost:37800</code>. It opens on the ledger: everything you have
-          said, newest first, with what memory believes above it. Click anything to see it
-          in full and what it led memory to conclude. Leave it open in a tab while you
-          work.</p>
+        <p class="small mute">Prints a live endpoint <code>http://localhost:37800</code> so
+          you can see everything your agent remembers and believes.</p>
       </article>
     </div>
   </section>
